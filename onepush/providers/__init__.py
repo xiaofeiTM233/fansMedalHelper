@@ -17,6 +17,7 @@ from . import telegram
 from . import wechatworkapp
 from . import wechatworkbot
 from . import lark
+from . import onebot
 
 _all_providers = {
     bark.Bark.name: bark.Bark,
@@ -31,5 +32,6 @@ _all_providers = {
     telegram.Telegram.name: telegram.Telegram,
     wechatworkapp.WechatWorkApp.name: wechatworkapp.WechatWorkApp,
     wechatworkbot.WechatWorkBot.name: wechatworkbot.WechatWorkBot,
-    lark.Lark.name: lark.Lark
+    lark.Lark.name: lark.Lark,
+    onebot.OneBot.name: onebot.OneBot
 }
