@@ -12,3 +12,5 @@ users.yaml
 venv/
 .idea/
 *.swp
+*.lnk
+*.bat
