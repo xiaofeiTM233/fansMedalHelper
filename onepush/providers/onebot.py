@@ -18,7 +18,7 @@ class OneBot(Provider):
     }
 
     async def _prepare_url(self, url: str, key: str, mode: str = 'send_private_msg', **kwargs):
-        self.url = self.base_url.format(mode, key)
+        self.url = self.base_url.format(url, mode, key)
         return self.url
 
     async def _prepare_data(self,
