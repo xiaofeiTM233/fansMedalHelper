@@ -97,7 +97,7 @@ class BiliUser:
         [
             self.medalsNeedDo.append(medal)
             for medal in self.medals
-            if medal['medal']['level'] < 20 and medal['medal']['today_feed'] < 1500
+            if medal['medal']['level'] < 120 and medal['medal']['today_feed'] < 1500
         ]
 
     async def like_v3(self, failedMedals: list = []):
@@ -206,7 +206,7 @@ class BiliUser:
         await self.getMedals()
         nameList1, nameList2, nameList3, nameList4 = [], [], [], []
         for medal in self.medals:
-            if medal['medal']['level'] >= 20:
+            if medal['medal']['level'] >= 120:
                 continue
             today_feed = medal['medal']['today_feed']
             nick_name = medal['anchor_info']['nick_name']
@@ -234,7 +234,7 @@ class BiliUser:
                 self.message.append(
                     f"【当前佩戴】「{initialMedal['medal_name']}」({initialMedal['target_name']}) {initialMedal['level']} 级 "
                 )
-                if initialMedal['level'] < 20 and initialMedal['today_feed'] != 0:
+                if initialMedal['level'] < 120 and initialMedal['today_feed'] != 0:
                     need = initialMedal['next_intimacy'] - initialMedal['intimacy']
                     need_days = need // 1500 + 1
                     end_date = datetime.now() + timedelta(days=need_days)
