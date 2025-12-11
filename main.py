@@ -145,10 +145,37 @@ if __name__ == "__main__":
         from apscheduler.schedulers.blocking import BlockingScheduler
         from apscheduler.triggers.cron import CronTrigger
 
-        log.info(f"使用内置定时器 {cron}，开启定时任务，等待时间到达后执行。")
         schedulers = BlockingScheduler()
-        schedulers.add_job(run, CronTrigger.from_crontab(cron), misfire_grace_time=3600)
-        schedulers.start()
+        
+        # 处理多 cron 逻辑
+        cron_list = []
+        if isinstance(cron, list):
+            # 如果 yaml 中写的是列表格式
+            cron_list = cron
+        elif isinstance(cron, str):
+            # 如果是字符串，尝试用 '||' 分割（兼容环境变量写法）
+            cron_list = cron.split('||')
+        
+        log.info(f"检测到定时配置，共 {len(cron_list)} 个任务")
+
+        job_count = 0
+        for cron_expr in cron_list:
+            cron_expr = cron_expr.strip()
+            if not cron_expr:
+                continue
+            try:
+                schedulers.add_job(run, CronTrigger.from_crontab(cron_expr), misfire_grace_time=3600)
+                log.info(f"已添加定时任务: [{cron_expr}]")
+                job_count += 1
+            except Exception as e:
+                log.error(f"Cron 表达式 [{cron_expr}] 格式错误或添加失败: {e}")
+
+        if job_count > 0:
+            log.info("所有定时任务已启动，等待执行...")
+            schedulers.start()
+        else:
+            log.error("未成功添加任何定时任务，请检查 CRON 配置")
+            
     elif "--auto" in sys.argv:
         from apscheduler.schedulers.blocking import BlockingScheduler
         from apscheduler.triggers.interval import IntervalTrigger
