@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm run docs:build",
+  "rewrites": [
+    {
+      "source": "/version",
+      "destination": "/api/version.js"
+    }
+  ]
+}

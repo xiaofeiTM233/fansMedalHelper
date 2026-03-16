@@ -1,0 +1,35 @@
+{
+  "name": "fans_medal_helper_docs",
+  "version": "0.4.1",
+  "description": "B站粉丝牌助手文档",
+  "main": "index.js",
+  "repository": "https://github.com/XiaoMiku01/fansMedalHelper",
+  "author": "XiaoMiku01",
+  "license": "GPL-3.0 license",
+  "private": false,
+  "devDependencies": {
+    "@vuepress/cli": "2.0.0-beta.46",
+    "@vuepress/client": "2.0.0-beta.46",
+    "@vuepress/core": "2.0.0-beta.46",
+    "@vuepress/plugin-register-components": "^2.0.0-beta.46",
+    "@vuepress/theme-default": "2.0.0-beta.46",
+    "@vuepress/utils": "2.0.0-beta.46",
+    "vue": "^3.2.36",
+    "vuepress": "2.0.0-beta.46"
+  },
+  "scripts": {
+    "docs:dev": "vuepress dev docs",
+    "docs:build": "vuepress build docs",
+    "vercel-build": "npm run docs:build"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.0.6",
+    "@vue/devtools-api": "^6.1.4",
+    "@vuepress/shared": "2.0.0-alpha.1",
+    "@vueuse/core": "^8.6.0",
+    "element-plus": "^2.2.3",
+    "sass": "^1.52.2",
+    "vue-router": "^4.0.15",
+    "vuepress-plugin-pixi-live2d-display": "^1.0.1"
+  }
+}

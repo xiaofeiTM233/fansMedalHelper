@@ -1,0 +1,12 @@
+.cache
+.temp
+
+node_modules
+
+.DS_Store
+
+*.log
+
+dist
+calc.html
+calculator.js
