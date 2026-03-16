@@ -2,6 +2,7 @@ import { localTheme } from "./theme";
 import { defineUserConfig } from "@vuepress/cli";
 import { registerComponentsPlugin } from "@vuepress/plugin-register-components";
 import { path } from "@vuepress/utils";
+import { viteBundler } from "@vuepress/bundler-vite";
 
 export default defineUserConfig({
     base: "/",
@@ -9,6 +10,7 @@ export default defineUserConfig({
     title: "B站粉丝牌助手文档",
     description: "B站粉丝牌助手文档",
     head: [["link", { rel: "icon", href: "/images/logo.png" }]],
+    bundler: viteBundler(),
     theme: localTheme({
         title: "B站粉丝牌助手文档",
         description: "B站粉丝牌助手文档",

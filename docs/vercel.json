@@ -1,6 +1,7 @@
 {
   "version": 2,
   "buildCommand": "pnpm run docs:build",
+  "outputDirectory": "docs/.vuepress/dist",
   "rewrites": [
     {
       "source": "/version",

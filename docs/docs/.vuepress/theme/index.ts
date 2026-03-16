@@ -3,12 +3,17 @@ import { defaultTheme } from '@vuepress/theme-default'
 import type { DefaultThemeOptions } from '@vuepress/theme-default'
 import { path } from '@vuepress/utils'
 
-export const localTheme = (options: DefaultThemeOptions): Theme => {
+interface LocalThemeOptions extends DefaultThemeOptions {
+  title?: string
+  description?: string
+}
+
+export const localTheme = (options: LocalThemeOptions): Theme => {
   return {
     name: 'vuepress-theme-local',
     extends: defaultTheme(options),
     layouts: {
       Layout: path.resolve(__dirname, './Layout.vue'),
     },
-  }
+  } as Theme
 }

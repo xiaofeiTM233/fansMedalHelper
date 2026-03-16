@@ -103,7 +103,9 @@ const restoreCache = () => {
         message: "本地缓存已清除，即将刷新",
     });
     setTimeout(() => {
-        window?.location.reload();
+        if (typeof window !== 'undefined') {
+            window.location.reload();
+        }
     }, 1500);
 };
 

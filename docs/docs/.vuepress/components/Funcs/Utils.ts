@@ -1,19 +1,23 @@
-const deepCopy = (obj) => {
+const deepCopy = <T>(obj: T): T => {
     const temp = JSON.stringify(obj);
     try {
         return JSON.parse(temp);
     } catch (error) {
         console.error(error);
-        return {};
+        return {} as T;
     }
 };
 
+const isClient = typeof window !== 'undefined';
+
 const cache = {
-    set: (key: string, value: any) => window?.localStorage.setItem(key, JSON.stringify(value)),
-    get: (key: string) =>
-        // ignore error here plz.
-        window?.localStorage.getItem(key) ? JSON.parse(window?.localStorage.getItem(key)) : null,
-    remove: (key: string) => window?.localStorage.removeItem(key),
+    set: (key: string, value: unknown) => isClient && window?.localStorage.setItem(key, JSON.stringify(value)),
+    get: (key: string) => {
+        if (!isClient) return null;
+        const item = window?.localStorage.getItem(key);
+        return item ? JSON.parse(item) : null;
+    },
+    remove: (key: string) => isClient && window?.localStorage.removeItem(key),
 };
 
 export { deepCopy, cache };

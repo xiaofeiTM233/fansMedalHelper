@@ -1,6 +1,11 @@
+// @ts-ignore
 import { ElMessage } from "element-plus";
 
-export default function copyText(text) {
+export default function copyText(text: string): boolean {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+        return false;
+    }
+
     try {
         if (navigator.clipboard) {
             navigator.clipboard.writeText(text); // use navigator.clipboard
