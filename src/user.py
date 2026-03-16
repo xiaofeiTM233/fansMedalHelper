@@ -140,7 +140,7 @@ class BiliUser:
             # finallyMedals = [medal for medal in self.medalsNeedDo if medal['medal']['today_feed'] >= 100]
             # msg = "20级以下牌子共 {} 个,完成点赞任务 {} 个".format(len(self.medalsNeedDo), len(finallyMedals))
             # self.log.log("INFO", msg)
-        except Exception as e:
+        except Exception:
             self.log.exception("点赞任务异常")
             self.errmsg.append(f"【{self.name}】 点赞任务异常,请检查日志")
 
@@ -197,6 +197,7 @@ class BiliUser:
                 self.log.log("INFO", "所有牌子已满 30 亲密度")
             tasks.append(self.sendDanmaku())
             tasks.append(self.signInGroups())
+            tasks.append(self.doCustomSignIn())
             await asyncio.gather(*tasks)
 
     async def sendmsg(self):
@@ -220,12 +221,12 @@ class BiliUser:
                 nameList4.append(nick_name)
         self.message.append(f"【{self.name}】 今日亲密度获取情况如下：")
 
-        for l, n in zip(
+        for medal_list, title in zip(
             [nameList1, nameList2, nameList3, nameList4],
             ["【30】", "【20至30】", "【10至20】", "【10以下】"],
         ):
-            if len(l) > 0:
-                self.message.append(f"{n}" + ' '.join(l[:5]) + f"{'等' if len(l) > 5 else ''}" + f' {len(l)}个')
+            if len(medal_list) > 0:
+                self.message.append(f"{title}" + ' '.join(medal_list[:5]) + f"{'等' if len(medal_list) > 5 else ''}" + f' {len(medal_list)}个')
 
         if hasattr(self, 'initialMedal'):
             initialMedalInfo = await self.api.getMedalsInfoByUid(self.initialMedal['target_id'])
@@ -298,3 +299,35 @@ class BiliUser:
             self.log.exception(e)
             self.log.log("ERROR", "应援团签到任务失败: " + str(e))
             self.errmsg.append("应援团签到任务失败: " + str(e))
+
+    async def doCustomSignIn(self):
+        """
+        自定义活动签到
+        """
+        if not self.config.get('CUSTOMSIGNIN'):
+            self.log.log("INFO", "自定义签到任务关闭")
+            return
+        
+        self.log.log("INFO", "自定义签到任务开始")
+        try:
+            n = 0
+            for medal in self.medals:
+                try:
+                    await self.api.doCustomSignIn(medal['medal']['target_id'])
+                    n += 1
+                    self.log.log("SUCCESS", f"{medal['anchor_info']['nick_name']} 自定义签到成功")
+                except Exception as e:
+                    self.log.log("ERROR", f"{medal['anchor_info']['nick_name']} 自定义签到失败: {e}")
+                    self.errmsg.append(f"【{self.name}】 {medal['anchor_info']['nick_name']} 自定义签到失败: {str(e)}")
+                    continue
+                await asyncio.sleep(self.config['CUSTOMSIGNIN'])
+            
+            if n:
+                self.log.log("SUCCESS", f"自定义签到任务完成 {n}/{len(self.medals)}")
+                self.message.append(f"【{self.name}】 自定义签到任务完成 {n}/{len(self.medals)}")
+            else:
+                self.log.log("WARNING", "自定义签到任务完成 0/0")
+        except Exception as e:
+            self.log.exception(e)
+            self.log.log("ERROR", "自定义签到任务失败: " + str(e))
+            self.errmsg.append("自定义签到任务失败: " + str(e))

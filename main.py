@@ -39,6 +39,7 @@ try:
         "WATCHINGLIVE": users["WATCHINGLIVE"],
         "WEARMEDAL": users["WEARMEDAL"],
         "SIGNINGROUP": users.get("SIGNINGROUP", 2),
+        "CUSTOMSIGNIN": users.get("CUSTOMSIGNIN", 2),
         "PROXY": users.get("PROXY"),
         "STOPWATCHINGTIME": None,
     }
@@ -116,7 +117,7 @@ async def main():
         params = users["MOREPUSH"]["params"]
         await notify(
             notifier,
-            title=f"【B站粉丝牌助手推送】",
+            title="【B站粉丝牌助手推送】",
             content="  \n".join(messageList),
             **params,
             proxy=config.get("PROXY"),
@@ -133,7 +134,7 @@ def run(*args, **kwargs):
 
 async def push_message(session, sendkey, message):
     url = f"https://sctapi.ftqq.com/{sendkey}.send"
-    data = {"title": f"【B站粉丝牌助手推送】", "desp": message}
+    data = {"title": "【B站粉丝牌助手推送】", "desp": message}
     await session.post(url, data=data)
     log.info("Server酱已推送")
 

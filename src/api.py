@@ -6,7 +6,7 @@ import random
 import sys
 import time
 import json
-from typing import Union
+from typing import Union, AsyncGenerator
 from loguru import logger
 from urllib.parse import urlencode, urlparse
 
@@ -23,7 +23,7 @@ class Crypto:
     @staticmethod
     def md5(data: Union[str, bytes]) -> str:
         """generates md5 hex dump of `str` or `bytes`"""
-        if type(data) == str:
+        if isinstance(data, str):
             return md5(data.encode()).hexdigest()
         return md5(data).hexdigest()
 
@@ -32,7 +32,7 @@ class Crypto:
         """salted sign funtion for `dict`(converts to qs then parse) & `str`"""
         if isinstance(data, dict):
             _str = urlencode(data)
-        elif type(data) != str:
+        elif not isinstance(data, str):
             raise TypeError
         return Crypto.md5(_str + Crypto.APPSECRET)
 
@@ -61,7 +61,7 @@ def retry(tries=3, interval=1):
                     result = await func(*args, **kwargs)
                 except Exception as e:
                     count += 1
-                    if type(e) == BiliApiError:
+                    if isinstance(e, BiliApiError):
                         if e.code == 1011040:
                             raise e
                         elif e.code == 10030:
@@ -135,7 +135,7 @@ class BiliApi:
         async with self.session.post(*args, **kwargs) as resp:
             return self.__check_response(await resp.json())
 
-    async def getFansMedalandRoomID(self) -> dict:
+    async def getFansMedalandRoomID(self) -> AsyncGenerator:
         """
         获取用户粉丝勋章和直播间ID
         """
@@ -472,3 +472,28 @@ class BiliApi:
             "ts": int(time.time()),
         }
         return await self.__post(url, data=SingableDict(data).signed, headers=self.headers)
+
+    async def doCustomSignIn(self, ruid: int, activity_id: int = 109745):
+        """
+        活动签到
+        """
+        url = "https://api.live.bilibili.com/xlive/custom-activity-interface/baseActivity/DoSignIn"
+        params = {
+            "access_key": self.u.access_key,
+            "activity_id": activity_id,
+            "brand": "",
+            "build": "",
+            "channel": "",
+            "csrf": "",
+            "device": "",
+            "mobi_app": "",
+            "model": "",
+            "osver": "",
+            "platform": "web",
+            "ruid": ruid,
+        }
+        headers = {
+            "Referer": "https://live.bilibili.com/",
+            **self.headers
+        }
+        return await self.__post(url, params=params, headers=headers)
