@@ -101,40 +101,32 @@ class BiliUser:
         ]
 
     async def like_v3(self, failedMedals: list = []):
-        if self.config['LIKE_CD'] == 0:
+        if self.config['LIKE_CD'] == -1:
             self.log.log("INFO", "点赞任务已关闭")
             return
         try:
             if not failedMedals:
                 failedMedals = self.medals
-            if not self.config['ASYNC']:
-                self.log.log("INFO", "同步点赞任务开始....")
-                for index, medal in enumerate(failedMedals):
-                    for i in range(30):
-                        tasks = []
-                        tasks.append(
-                            self.api.likeInteractV3(medal['room_info']['room_id'], medal['medal']['target_id'],self.mid)
-                        ) if self.config['LIKE_CD'] else ...
-                        await asyncio.gather(*tasks)
-                        await asyncio.sleep(self.config['LIKE_CD'])
-                    self.log.log(
-                        "SUCCESS",
-                        f"{medal['anchor_info']['nick_name']} 点赞{i+1}次成功 {index+1}/{len(self.medals)}",
-                    )
-            else:
+            if self.config['LIKE_CD'] == 0:
+                # 异步点赞：CD=0，所有直播间同时点赞，不等待
                 self.log.log("INFO", "异步点赞任务开始....")
                 for i in range(35):
                     allTasks = []
                     for medal in failedMedals:
-                        allTasks.append(
-                            self.api.likeInteractV3(medal['room_info']['room_id'], medal['medal']['target_id'],self.mid)
-                        ) if self.config['LIKE_CD'] else ...
+                        allTasks.append(self.api.likeInteractV3(medal['room_info']['room_id'], medal['medal']['target_id'], self.mid))
                     await asyncio.gather(*allTasks)
-                    self.log.log(
-                        "SUCCESS",
-                        f"{medal['anchor_info']['nick_name']} 异步点赞{i+1}次成功",
-                    )
+                    self.log.log("SUCCESS", f"异步点赞{i+1}次成功")
                     await asyncio.sleep(self.config['LIKE_CD'])
+            else:
+                # 同步点赞：CD>0，逐个直播间点赞，间隔时间为CD值
+                self.log.log("INFO", f"同步点赞任务开始，间隔{self.config['LIKE_CD']}秒")
+                for index, medal in enumerate(failedMedals):
+                    for i in range(30):
+                        tasks = []
+                        tasks.append(self.api.likeInteractV3(medal['room_info']['room_id'], medal['medal']['target_id'], self.mid))
+                        await asyncio.gather(*tasks)
+                        await asyncio.sleep(self.config['LIKE_CD'])
+                    self.log.log("SUCCESS", f"{medal['anchor_info']['nick_name']} 点赞{i+1}次成功 {index+1}/{len(self.medals)}")
             await asyncio.sleep(10)
             self.log.log("SUCCESS", "点赞任务完成")
             # finallyMedals = [medal for medal in self.medalsNeedDo if medal['medal']['today_feed'] >= 100]
@@ -148,10 +140,10 @@ class BiliUser:
         """
         每日弹幕打卡
         """
-        if not self.config['DANMAKU_CD']:
-            self.log.log("INFO", "弹幕任务关闭")
+        if self.config['DANMAKU_CD'] == -1:
+            self.log.log("INFO", "弹幕任务已关闭")
             return
-        self.log.log("INFO", "弹幕打卡任务开始....(预计 {} 秒完成)".format(len(self.medals) * self.config['DANMAKU_CD']))
+        self.log.log("INFO", "弹幕打卡任务开始....(预计 {} 秒完成)".format(len(self.medals) * max(self.config['DANMAKU_CD'], 1)))
         n = 0
         successnum = 0
         for medal in self.medals:
@@ -170,7 +162,7 @@ class BiliUser:
                 self.log.log("ERROR", "{} 房间弹幕打卡失败: {}".format(medal['anchor_info']['nick_name'], e))
                 self.errmsg.append(f"【{self.name}】 {medal['anchor_info']['nick_name']} 房间弹幕打卡失败: {str(e)}")
             finally:
-                await asyncio.sleep(self.config['DANMAKU_CD'])
+                await asyncio.sleep(self.config['DANMAKU_CD'] if self.config['DANMAKU_CD'] > 0 else 0)
 
         if hasattr(self, 'initialMedal'):
             (await self.api.wearMedal(self.initialMedal['medal_id'])) if self.config['WEARMEDAL'] else ...
@@ -251,29 +243,56 @@ class BiliUser:
             self.log.log("INFO", "每日观看直播任务关闭")
             return
         HEART_MAX = self.config['WATCHINGLIVE']
-        self.log.log("INFO", f"每日{HEART_MAX}分钟任务开始")
-        n = 0
-        for medal in self.medalsNeedDo:
-            n += 1
+        CD_TIME = self.config['WATCHINGLIVE_CD'] if self.config['WATCHINGLIVE_CD'] != -1 else 60
+        
+        self.log.log("INFO", f"每日{HEART_MAX}分钟任务开始（每个心跳包间隔{CD_TIME}秒）")
+        
+        if CD_TIME == 0:
+            # 异步模式：所有直播间同时发送心跳包
+            self.log.log("INFO", f"异步观看直播模式，共{len(self.medalsNeedDo)}个直播间")
             for heartNum in range(1, HEART_MAX+1):
                 if self.config['STOPWATCHINGTIME']:
                     if int(time.time()) >= self.config['STOPWATCHINGTIME']:
                         self.log.log("INFO", "已到设置的时间，自动停止直播任务")
                         return
-                tasks = []
-                tasks.append(self.api.heartbeat(medal['room_info']['room_id'], medal['medal']['target_id']))
-                await asyncio.gather(*tasks)
+                
+                allTasks = []
+                for medal in self.medalsNeedDo:
+                    allTasks.append(self.api.heartbeat(medal['room_info']['room_id'], medal['medal']['target_id']))
+                
+                await asyncio.gather(*allTasks)
+                
                 if heartNum%5==0:
                     self.log.log(
                         "INFO",
-                        f"{medal['anchor_info']['nick_name']} 第{heartNum}次心跳包已发送（{n}/{len(self.medalsNeedDo)}）",
+                        f"所有直播间第{heartNum}次心跳包已发送（共{len(self.medalsNeedDo)}个直播间）",
                     )
-                await asyncio.sleep(60)
+                await asyncio.sleep(CD_TIME)
+        else:
+            # 同步模式：逐个直播间发送心跳包
+            self.log.log("INFO", f"同步观看直播模式，间隔{CD_TIME}秒，共{len(self.medalsNeedDo)}个直播间")
+            n = 0
+            for medal in self.medalsNeedDo:
+                n += 1
+                for heartNum in range(1, HEART_MAX+1):
+                    if self.config['STOPWATCHINGTIME']:
+                        if int(time.time()) >= self.config['STOPWATCHINGTIME']:
+                            self.log.log("INFO", "已到设置的时间，自动停止直播任务")
+                            return
+                    tasks = []
+                    tasks.append(self.api.heartbeat(medal['room_info']['room_id'], medal['medal']['target_id']))
+                    await asyncio.gather(*tasks)
+                    if heartNum%5==0:
+                        self.log.log(
+                            "INFO",
+                            f"{medal['anchor_info']['nick_name']} 第{heartNum}次心跳包已发送（{n}/{len(self.medalsNeedDo)}）",
+                        )
+                    await asyncio.sleep(CD_TIME)
         self.log.log("SUCCESS", f"每日{HEART_MAX}分钟任务完成")
 
     async def signInGroups(self):
-        if not self.config['SIGNINGROUP']:
-            self.log.log("INFO", "应援团签到任务关闭")
+        if self.config['SIGNINGROUP_CD'] == -1:
+            self.log.log("INFO", "应援团签到任务已关闭")
             return
         self.log.log("INFO", "应援团签到任务开始")
         try:
@@ -288,7 +307,7 @@ class BiliUser:
                     self.errmsg.append(f"应援团签到失败: {e}")
                     continue
                 self.log.log("DEBUG", group['group_name'] + " 签到成功")
-                await asyncio.sleep(self.config['SIGNINGROUP'])
+                await asyncio.sleep(self.config['SIGNINGROUP_CD'] if self.config['SIGNINGROUP_CD'] > 0 else 0)
                 n += 1
             if n:
                 self.log.log("SUCCESS", f"应援团签到任务完成 {n}/{n}")
@@ -304,8 +323,8 @@ class BiliUser:
         """
         自定义活动签到
         """
-        if not self.config.get('CUSTOMSIGNIN'):
-            self.log.log("INFO", "自定义签到任务关闭")
+        if self.config.get('CUSTOMSIGNIN_CD') == -1:
+            self.log.log("INFO", "自定义签到任务已关闭")
             return
         
         self.log.log("INFO", "自定义签到任务开始")
@@ -320,7 +339,7 @@ class BiliUser:
                     self.log.log("ERROR", f"{medal['anchor_info']['nick_name']} 自定义签到失败: {e}")
                     self.errmsg.append(f"【{self.name}】 {medal['anchor_info']['nick_name']} 自定义签到失败: {str(e)}")
                     continue
-                await asyncio.sleep(self.config['CUSTOMSIGNIN'])
+                await asyncio.sleep(self.config['CUSTOMSIGNIN_CD'] if self.config['CUSTOMSIGNIN_CD'] > 0 else 0)
             
             if n:
                 self.log.log("SUCCESS", f"自定义签到任务完成 {n}/{len(self.medals)}")

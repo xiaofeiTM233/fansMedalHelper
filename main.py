@@ -9,7 +9,7 @@ import itertools
 from src import BiliUser
 
 log = logger.bind(user="B站粉丝牌助手")
-__VERSION__ = "0.3.8"
+__VERSION__ = "0.4.1"
 
 warnings.filterwarnings(
     "ignore",
@@ -25,23 +25,25 @@ try:
 
         with open("users.yaml", "r", encoding="utf-8") as f:
             users = yaml.load(f, Loader=yaml.FullLoader)
-    assert users["ASYNC"] in [0, 1], "ASYNC参数错误"
-    assert users["LIKE_CD"] >= 0, "LIKE_CD参数错误"
+    assert users["LIKE_CD"] >= -1, "LIKE_CD参数错误"
     # assert users['SHARE_CD'] >= 0, "SHARE_CD参数错误"
-    assert users["DANMAKU_CD"] >= 0, "DANMAKU_CD参数错误"
+    assert users["DANMAKU_CD"] >= -1, "DANMAKU_CD参数错误"
     assert users["WATCHINGLIVE"] >= 0, "WATCHINGLIVE参数错误"
     assert users["WEARMEDAL"] in [0, 1], "WEARMEDAL参数错误"
+    assert users["WATCHINGLIVE_CD"] >= -1, "WATCHINGLIVE_CD参数错误"
+    assert users["SIGNINGROUP_CD"] >= -1, "SIGNINGROUP_CD参数错误"
+    assert users["CUSTOMSIGNIN_CD"] >= -1, "CUSTOMSIGNIN_CD参数错误"
     config = {
-        "ASYNC": users["ASYNC"],
         "LIKE_CD": users["LIKE_CD"],
         # "SHARE_CD": users['SHARE_CD'],
         "DANMAKU_CD": users["DANMAKU_CD"],
         "WATCHINGLIVE": users["WATCHINGLIVE"],
         "WEARMEDAL": users["WEARMEDAL"],
-        "SIGNINGROUP": users.get("SIGNINGROUP", 2),
-        "CUSTOMSIGNIN": users.get("CUSTOMSIGNIN", 2),
+        "SIGNINGROUP_CD": users.get("SIGNINGROUP_CD", 2),
+        "CUSTOMSIGNIN_CD": users.get("CUSTOMSIGNIN_CD", 2),
         "PROXY": users.get("PROXY"),
         "STOPWATCHINGTIME": None,
+        "WATCHINGLIVE_CD": users.get("WATCHINGLIVE_CD", 60),
     }
     stoptime = users.get("STOPWATCHINGTIME", None)
     if stoptime:
@@ -67,7 +69,7 @@ async def main():
         log.warning("当前版本为: " + __VERSION__)
         resp = await (
             await session.get(
-                "http://version.fansmedalhelper.1961584514352337.cn-hangzhou.fc.devsapp.net/"
+                "https://fansmedalhelper.02000721.xyz/version"
             )
         ).json()
         if resp["version"] != __VERSION__:
