@@ -9,7 +9,7 @@ import itertools
 from src import BiliUser
 
 log = logger.bind(user="B站粉丝牌助手")
-__VERSION__ = "0.4.1"
+__VERSION__ = "0.4.2"
 
 warnings.filterwarnings(
     "ignore",
@@ -33,6 +33,9 @@ try:
     assert users["WATCHINGLIVE_CD"] >= -1, "WATCHINGLIVE_CD参数错误"
     assert users["SIGNINGROUP_CD"] >= -1, "SIGNINGROUP_CD参数错误"
     assert users["CUSTOMSIGNIN_CD"] >= -1, "CUSTOMSIGNIN_CD参数错误"
+    assert users.get("MIN_INTIMACY_THRESHOLD", 30) >= 0, "MIN_INTIMACY_THRESHOLD参数错误"
+    cron_index = users.get("CRON_INDEX", 0)
+    assert isinstance(cron_index, int), "CRON_INDEX参数错误"
     config = {
         "LIKE_CD": users["LIKE_CD"],
         # "SHARE_CD": users['SHARE_CD'],
@@ -44,6 +47,10 @@ try:
         "PROXY": users.get("PROXY"),
         "STOPWATCHINGTIME": None,
         "WATCHINGLIVE_CD": users.get("WATCHINGLIVE_CD", 60),
+        "MIN_INTIMACY_THRESHOLD": users.get("MIN_INTIMACY_THRESHOLD", 30),
+        "CRON_INDEX": cron_index,
+        "TOTAL_CRON_COUNT": 0,
+        "CURRENT_CRON_INDEX": 0,
     }
     stoptime = users.get("STOPWATCHINGTIME", None)
     if stoptime:
@@ -130,6 +137,10 @@ async def main():
 def run(*args, **kwargs):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    cron_index = kwargs.get('cron_index', 0)
+    total_count = kwargs.get('total_count', 0)
+    config["CURRENT_CRON_INDEX"] = cron_index
+    config["TOTAL_CRON_COUNT"] = total_count
     loop.run_until_complete(main())
     log.info("任务结束，等待下一次执行。")
 
@@ -162,13 +173,15 @@ if __name__ == "__main__":
         log.info(f"检测到定时配置，共 {len(cron_list)} 个任务")
 
         job_count = 0
-        for cron_expr in cron_list:
+        for index, cron_expr in enumerate(cron_list):
             cron_expr = cron_expr.strip()
             if not cron_expr:
                 continue
             try:
-                schedulers.add_job(run, CronTrigger.from_crontab(cron_expr), misfire_grace_time=3600)
-                log.info(f"已添加定时任务: [{cron_expr}]")
+                schedulers.add_job(run, CronTrigger.from_crontab(cron_expr),
+                                   misfire_grace_time=3600,
+                                   kwargs={'cron_index': index + 1, 'total_count': len(cron_list)})
+                log.info(f"已添加定时任务: [{cron_expr}] (第 {index + 1}/{len(cron_list)} 个)")
                 job_count += 1
             except Exception as e:
                 log.error(f"Cron 表达式 [{cron_expr}] 格式错误或添加失败: {e}")

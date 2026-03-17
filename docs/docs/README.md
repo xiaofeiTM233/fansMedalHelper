@@ -3,7 +3,7 @@ home: true
 heroImage: /images/logo.png
 heroImageAlt: Logo
 heroText: B 站粉丝牌助手
-tagline: 适配新版粉丝牌机制 当前版本：0.4.1
+tagline: 适配新版粉丝牌机制 当前版本：0.4.2
 actions:
     - text: 快速上手
       link: /guide/

@@ -42,6 +42,39 @@ class BiliUser:
         self.message = []
         self.errmsg = ["错误日志："]
         self.uuids = [str(uuid.uuid4()) for _ in range(2)]
+        self.cron_index = self.config.get("CURRENT_CRON_INDEX", 0)
+        self.total_cron_count = self.config.get("TOTAL_CRON_COUNT", 0)
+        self.target_cron_index = self.config.get("CRON_INDEX", 0)
+
+    def should_execute_task(self) -> bool:
+        """
+        检查是否应该在当前 cron 执行任务
+        返回 True 表示应该执行，False 表示跳过
+        """
+        if self.target_cron_index == 0:
+            # 设置为 0，所有 cron 都执行
+            return True
+        elif self.target_cron_index > 0:
+            # 设置为正整数，只在对应位置的 cron 执行
+            return self.target_cron_index == self.cron_index
+        elif self.target_cron_index < 0:
+            # 设置为负数，表示倒数第几个
+            # 例如：-1 表示倒数第 1 个（最后一个），-2 表示倒数第 2 个
+            target_position = self.total_cron_count + self.target_cron_index + 1
+            return target_position == self.cron_index
+        return False
+
+    def get_target_description(self) -> str:
+        """
+        获取目标索引的描述文本
+        """
+        if self.target_cron_index == 0:
+            return "所有"
+        elif self.target_cron_index > 0:
+            return f"第{self.target_cron_index}个"
+        else:
+            # 负数表示倒数第几个
+            return f"倒数第{abs(self.target_cron_index)}个"
 
     async def loginVerify(self) -> bool:
         """
@@ -94,11 +127,13 @@ class BiliUser:
                 if medal['medal']['target_id'] in self.whiteList:
                     self.medals.append(medal) if medal['room_info']['room_id'] != 0 else ...
                     self.log.success(f"{medal['anchor_info']['nick_name']} 在白名单中，加入任务")
+        min_intimacy = self.config.get("MIN_INTIMACY_THRESHOLD", 30)
         [
             self.medalsNeedDo.append(medal)
             for medal in self.medals
-            if medal['medal']['level'] < 120 and medal['medal']['today_feed'] < 30
+            if medal['medal']['level'] < 120 and medal['medal']['today_feed'] < min_intimacy
         ]
+        self.log.info(f"当前亲密度阈值设置为 {min_intimacy}，未达到此阈值的牌子将执行任务")
 
     async def like_v3(self, failedMedals: list = []):
         if self.config['LIKE_CD'] == -1:
@@ -181,15 +216,26 @@ class BiliUser:
     async def start(self):
         if self.isLogin:
             tasks = []
+            should_execute = self.should_execute_task()
+            min_intimacy = self.config.get("MIN_INTIMACY_THRESHOLD", 30)
+
             if self.medalsNeedDo:
-                self.log.log("INFO", f"共有 {len(self.medalsNeedDo)} 个牌子未满 30 亲密度")
-                tasks.append(self.like_v3())
+                self.log.log("INFO", f"共有 {len(self.medalsNeedDo)} 个牌子未满 {min_intimacy} 亲密度")
+                if should_execute:
+                    tasks.append(self.like_v3())
+                else:
+                    self.log.log("INFO", f"点赞任务跳过（当前 cron 索引: {self.cron_index}/{self.total_cron_count}, 仅在{self.get_target_description()} cron 执行）")
                 tasks.append(self.watchinglive())
             else:
-                self.log.log("INFO", "所有牌子已满 30 亲密度")
-            tasks.append(self.sendDanmaku())
-            tasks.append(self.signInGroups())
-            tasks.append(self.doCustomSignIn())
+                self.log.log("INFO", f"所有牌子已满 {min_intimacy} 亲密度")
+
+            if should_execute:
+                tasks.append(self.sendDanmaku())
+                tasks.append(self.signInGroups())
+                tasks.append(self.doCustomSignIn())
+            else:
+                self.log.log("INFO", f"弹幕签到、应援团签到、活动签到任务跳过（当前 cron 索引: {self.cron_index}/{self.total_cron_count}, 仅在{self.get_target_description()} cron 执行）")
+
             await asyncio.gather(*tasks)
 
     async def sendmsg(self):
@@ -326,7 +372,7 @@ class BiliUser:
         if self.config.get('CUSTOMSIGNIN_CD') == -1:
             self.log.log("INFO", "自定义签到任务已关闭")
             return
-        
+
         self.log.log("INFO", "自定义签到任务开始")
         try:
             n = 0

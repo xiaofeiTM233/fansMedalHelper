@@ -1,6 +1,6 @@
 {
   "name": "fans_medal_helper_docs",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "B站粉丝牌助手文档",
   "main": "index.js",
   "repository": "https://github.com/XiaoMiku01/fansMedalHelper",
