@@ -5,7 +5,7 @@ WORKDIR /tmp
 
 RUN apk add --no-cache git \
     && git config --global --add safe.directory "*" \
-    && git clone https://github.com/XiaoMiku01/fansMedalHelper /app/fansMedalHelper \
+    && git clone https://github.com/xiaofeiTM233/fansMedalHelper /app/fansMedalHelper \
     && pip install --no-cache-dir -r /app/fansMedalHelper/requirements.txt \
     && rm -rf /tmp/*
 
