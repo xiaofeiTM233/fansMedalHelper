@@ -4,7 +4,7 @@
   <img src="https://s1.ax1x.com/2022/05/24/XPx1tx.png" width="200" height="200" alt="">
 </p>
 
-当前版本：0.4.1
+当前版本：0.4.2
 
 ## 关于原作
 
