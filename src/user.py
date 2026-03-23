@@ -128,12 +128,16 @@ class BiliUser:
                     self.medals.append(medal) if medal['room_info']['room_id'] != 0 else ...
                     self.log.success(f"{medal['anchor_info']['nick_name']} 在白名单中，加入任务")
         min_intimacy = self.config.get("MIN_INTIMACY_THRESHOLD", 30)
-        [
-            self.medalsNeedDo.append(medal)
-            for medal in self.medals
-            if medal['medal']['level'] < 120 and medal['medal']['today_feed'] < min_intimacy
-        ]
-        self.log.info(f"当前亲密度阈值设置为 {min_intimacy}，未达到此阈值的牌子将执行任务")
+        if min_intimacy == 0:
+            self.medalsNeedDo = [medal for medal in self.medals if medal['medal']['level'] < 120]
+            self.log.info(f"亲密度阈值设置为 0，所有非满级牌子将执行任务")
+        else:
+            [
+                self.medalsNeedDo.append(medal)
+                for medal in self.medals
+                if medal['medal']['level'] < 120 and medal['medal']['today_feed'] < min_intimacy
+            ]
+            self.log.info(f"当前亲密度阈值设置为 {min_intimacy}，未达到此阈值的牌子将执行任务")
 
     async def like_v3(self, failedMedals: list = []):
         if self.config['LIKE_CD'] == -1:
@@ -384,7 +388,6 @@ class BiliUser:
                 except Exception as e:
                     self.log.log("ERROR", f"{medal['anchor_info']['nick_name']} 自定义签到失败: {e}")
                     self.errmsg.append(f"【{self.name}】 {medal['anchor_info']['nick_name']} 自定义签到失败: {str(e)}")
-                    continue
                 await asyncio.sleep(self.config['CUSTOMSIGNIN_CD'] if self.config['CUSTOMSIGNIN_CD'] > 0 else 0)
             
             if n:
