@@ -184,7 +184,16 @@ class BiliUser:
             self.log.log("INFO", "弹幕任务已关闭")
             return
         danmaku_count = self.config['DANMAKU_COUNT']
-        self.log.log("INFO", "弹幕打卡任务开始....(预计 {} 秒完成, 每个房间发送 {} 条弹幕)".format(len(self.medals) * max(self.config['DANMAKU_CD'], 1) * danmaku_count, danmaku_count))
+        if self.config['DANMAKU_ROUND_ROBIN']:
+            await self.sendDanmakuRoundRobin(danmaku_count)
+        else:
+            await self.sendDanmakuSequential(danmaku_count)
+
+    async def sendDanmakuSequential(self, danmaku_count: int):
+        """
+        顺序模式：一个直播间发完所有弹幕再下一个
+        """
+        self.log.log("INFO", "弹幕打卡任务开始(顺序模式)....(预计 {} 秒完成, 每个房间发送 {} 条弹幕)".format(len(self.medals) * max(self.config['DANMAKU_CD'], 1) * danmaku_count, danmaku_count))
         n = 0
         successnum = 0
         for medal in self.medals:
@@ -207,7 +216,39 @@ class BiliUser:
                 self.errmsg.append(f"【{self.name}】 {medal['anchor_info']['nick_name']} 房间弹幕打卡失败: {str(e)}")
             finally:
                 await asyncio.sleep(self.config['DANMAKU_CD'] if self.config['DANMAKU_CD'] > 0 else 0)
+        if hasattr(self, 'initialMedal'):
+            (await self.api.wearMedal(self.initialMedal['medal_id'])) if self.config['WEARMEDAL'] else ...
+        self.log.log("SUCCESS", "弹幕打卡任务完成")
+        self.message.append(f"【{self.name}】 弹幕打卡任务完成 {successnum}/{len(self.medals)}")
 
+    async def sendDanmakuRoundRobin(self, danmaku_count: int):
+        """
+        轮询模式：每轮每个房间发一条，共 DANMAKU_COUNT 轮
+        """
+        self.log.log("INFO", "弹幕打卡任务开始(轮询模式)....(预计 {} 秒完成, 每个房间发送 {} 条弹幕)".format(danmaku_count * max(self.config['DANMAKU_CD'], 1) * len(self.medals), danmaku_count))
+        successnum = 0
+        failed_rooms = set()
+        for i in range(danmaku_count):
+            for medal in self.medals:
+                if id(medal) in failed_rooms:
+                    continue
+                (await self.api.wearMedal(medal['medal']['medal_id'])) if self.config['WEARMEDAL'] else ...
+                try:
+                    danmaku = await self.api.sendDanmaku(medal['room_info']['room_id'])
+                    successnum += 1
+                    self.log.log(
+                        "DEBUG",
+                        "{} 房间弹幕打卡成功: {} 第{}/{}轮 第{}条".format(
+                            medal['anchor_info']['nick_name'], danmaku, i + 1, danmaku_count, 1
+                        ),
+                    )
+                except Exception as e:
+                    self.log.log("ERROR", "{} 房间弹幕打卡失败: {}".format(medal['anchor_info']['nick_name'], e))
+                    self.errmsg.append(f"【{self.name}】 {medal['anchor_info']['nick_name']} 房间弹幕打卡失败: {str(e)}")
+                    failed_rooms.add(id(medal))
+                await asyncio.sleep(self.config['DANMAKU_CD'] if self.config['DANMAKU_CD'] > 0 else 0)
+            if i < danmaku_count - 1:
+                self.log.log("INFO", "第{}/{}轮弹幕打卡完成".format(i + 1, danmaku_count))
         if hasattr(self, 'initialMedal'):
             (await self.api.wearMedal(self.initialMedal['medal_id'])) if self.config['WEARMEDAL'] else ...
         self.log.log("SUCCESS", "弹幕打卡任务完成")
