@@ -25,35 +25,35 @@ try:
 
         with open("users.yaml", "r", encoding="utf-8") as f:
             users = yaml.load(f, Loader=yaml.FullLoader)
+    assert users["WATCHINGLIVE"] >= 0, "WATCHINGLIVE参数错误"
+    assert users["MIN_INTIMACY_THRESHOLD"] >= 0, "MIN_INTIMACY_THRESHOLD参数错误"
+    assert users["WATCHINGLIVE_CD"] >= -1, "WATCHINGLIVE_CD参数错误"
     assert users["LIKE_CD"] >= -1, "LIKE_CD参数错误"
     assert users["LIKE_COUNT"] >= 0, "LIKE_COUNT参数错误"
     # assert users['SHARE_CD'] >= 0, "SHARE_CD参数错误"
     assert users["DANMAKU_CD"] >= -1, "DANMAKU_CD参数错误"
     assert users["DANMAKU_COUNT"] >= 0, "DANMAKU_COUNT参数错误"
-    assert users["DANMAKU_ROUND_ROBIN"] in [0, 1], "DANMAKU_ROUND_ROBIN参数错误"
-    assert users["WATCHINGLIVE"] >= 0, "WATCHINGLIVE参数错误"
-    assert users["WEARMEDAL"] in [0, 1], "WEARMEDAL参数错误"
-    assert users["WATCHINGLIVE_CD"] >= -1, "WATCHINGLIVE_CD参数错误"
     assert users["SIGNINGROUP_CD"] >= -1, "SIGNINGROUP_CD参数错误"
     assert users["CUSTOMSIGNIN_CD"] >= -1, "CUSTOMSIGNIN_CD参数错误"
-    assert users["MIN_INTIMACY_THRESHOLD"] >= 0, "MIN_INTIMACY_THRESHOLD参数错误"
+    assert users["WEARMEDAL"] in [0, 1], "WEARMEDAL参数错误"
+    assert users["DANMAKU_ROUND_ROBIN"] in [0, 1], "DANMAKU_ROUND_ROBIN参数错误"
     cron_index = users["CRON_INDEX"]
     assert isinstance(cron_index, int), "CRON_INDEX参数错误"
     config = {
+        "WATCHINGLIVE": users["WATCHINGLIVE"],
+        "MIN_INTIMACY_THRESHOLD": users["MIN_INTIMACY_THRESHOLD"],
+        "WATCHINGLIVE_CD": users["WATCHINGLIVE_CD"],
         "LIKE_CD": users["LIKE_CD"],
         "LIKE_COUNT": users["LIKE_COUNT"],
         # "SHARE_CD": users['SHARE_CD'],
         "DANMAKU_CD": users["DANMAKU_CD"],
         "DANMAKU_COUNT": users["DANMAKU_COUNT"],
-        "DANMAKU_ROUND_ROBIN": users["DANMAKU_ROUND_ROBIN"],
-        "WATCHINGLIVE": users["WATCHINGLIVE"],
-        "WEARMEDAL": users["WEARMEDAL"],
         "SIGNINGROUP_CD": users["SIGNINGROUP_CD"],
         "CUSTOMSIGNIN_CD": users["CUSTOMSIGNIN_CD"],
+        "WEARMEDAL": users["WEARMEDAL"],
+        "DANMAKU_ROUND_ROBIN": users["DANMAKU_ROUND_ROBIN"],
         "PROXY": users.get("PROXY"),
         "STOPWATCHINGTIME": None,
-        "WATCHINGLIVE_CD": users["WATCHINGLIVE_CD"],
-        "MIN_INTIMACY_THRESHOLD": users["MIN_INTIMACY_THRESHOLD"],
         "CRON_INDEX": cron_index,
         "TOTAL_CRON_COUNT": 0,
         "CURRENT_CRON_INDEX": 0,
