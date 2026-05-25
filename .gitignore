@@ -13,3 +13,4 @@ venv/
 *.swp
 *.lnk
 *.bat
+*.json

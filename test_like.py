@@ -9,11 +9,18 @@ import os
 import sys
 import time
 import asyncio
+import logging
 import warnings
-from loguru import logger
 from aiohttp import ClientSession, ClientTimeout
 from urllib.parse import urlencode
 from hashlib import md5
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("live_detect")
 
 warnings.filterwarnings(
     "ignore",
@@ -69,7 +76,7 @@ def save_cache(mid, cache):
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cache, f)
     except Exception as e:
-        logger.warning(f"保存缓存失败: {e}")
+        log.warning(f"保存缓存失败: {e}")
 
 
 async def login(session, access_key):
@@ -86,7 +93,7 @@ async def login(session, access_key):
         if data.get("code") != 0:
             raise Exception(f"登录失败: {data.get('message', '未知错误')}")
         info = data["data"]
-        return info["mid"], info["uname"]
+        return info["mid"], info["name"]
 
 
 async def get_medals(session, access_key):
@@ -124,11 +131,11 @@ async def get_live_users(session, access_key):
         async with session.get(url, params={"access_key": access_key}, headers=WEB_HEADERS) as resp:
             data = await resp.json()
             if data.get("code") != 0:
-                logger.warning(f"获取动态直播列表失败: {data.get('message', '未知错误')}")
+                log.warning(f"获取动态直播列表失败: {data.get('message', '未知错误')}")
                 return []
             return data.get("data", {}).get("live_users", {}).get("items", [])
     except Exception as e:
-        logger.warning(f"获取动态直播列表异常: {e}")
+        log.warning(f"获取动态直播列表异常: {e}")
         return []
 
 
@@ -155,11 +162,10 @@ async def process_user(access_key, like_count, like_cd):
     session = ClientSession(timeout=ClientTimeout(total=10), trust_env=True)
     try:
         mid, name = await login(session, access_key)
-        log = logger.bind(user=name)
-        log.success(f"{mid} 登录成功")
+        log.info(f"[{name}] {mid} 登录成功")
 
         medal_map = await get_medals(session, access_key)
-        log.info(f"共有 {len(medal_map)} 个粉丝牌子")
+        log.info(f"[{name}] 共有 {len(medal_map)} 个粉丝牌子")
 
         cache = load_cache(mid)
         today = time.strftime("%Y-%m-%d", time.localtime())
@@ -171,7 +177,7 @@ async def process_user(access_key, like_count, like_cd):
             live_users = await get_live_users(session, access_key)
 
             if not live_users:
-                log.debug("动态页没有检测到正在直播的主播，等待下次轮询")
+                log.debug(f"[{name}] 动态页没有检测到正在直播的主播，等待下次轮询")
                 await asyncio.sleep(POLL_INTERVAL)
                 continue
 
@@ -186,25 +192,26 @@ async def process_user(access_key, like_count, like_cd):
                 if uid not in medal_map:
                     continue
 
-                log.info(f"检测到 {uname} 正在直播，有粉丝牌子，开始点赞 ({like_count}次)...")
+                log.info(f"[{name}] 检测到 {uname} 正在直播，有粉丝牌子，开始点赞 ({like_count}次)...")
                 try:
                     for i in range(like_count):
                         await like(session, access_key, room_id, uid, mid)
                         if like_cd > 0:
                             await asyncio.sleep(like_cd)
-                    log.success(f"{uname} 点赞完成")
+                    log.info(f"[{name}] {uname} 点赞完成")
                     cache["liked_uids"].append(uid)
                     liked_count += 1
+                    await asyncio.sleep(like_cd)
                 except Exception as e:
-                    log.error(f"{uname} 点赞失败: {e}")
+                    log.error(f"[{name}] {uname} 点赞失败: {e}")
 
             if liked_count > 0:
                 save_cache(mid, cache)
-                log.info(f"本轮检测完成，为 {liked_count} 个主播点赞")
+                log.info(f"[{name}] 本轮检测完成，为 {liked_count} 个主播点赞")
 
             await asyncio.sleep(POLL_INTERVAL)
     except Exception as e:
-        logger.bind(user="unknown").error(f"用户处理异常退出: {e}")
+        log.error(f"用户处理异常退出: {e}")
     finally:
         await session.close()
 
@@ -212,14 +219,14 @@ async def process_user(access_key, like_count, like_cd):
 async def main():
     config = load_config()
 
-    like_cd = config.get("LIKE_CD", 3)
+    like_cd = 15 #config.get("LIKE_CD", 3)
     like_count = 500 #config.get("LIKE_COUNT", 500)
 
     if like_count == 0 or like_cd == -1:
-        logger.warning("LIKE_COUNT=0 或 LIKE_CD=-1，点赞功能未开启，请先配置")
+        log.warning("LIKE_COUNT=0 或 LIKE_CD=-1，点赞功能未开启，请先配置")
         return
 
-    logger.info(f"动态开播检测点赞启动，轮询间隔 {POLL_INTERVAL} 秒，每次点赞 {like_count} 次，间隔 {like_cd} 秒")
+    log.info(f"动态开播检测点赞启动，轮询间隔 {POLL_INTERVAL} 秒，每次点赞 {like_count} 次，间隔 {like_cd} 秒")
 
     tasks = []
     for user in config.get("USERS", []):
@@ -228,7 +235,7 @@ async def main():
             tasks.append(process_user(access_key, like_count, like_cd))
 
     if not tasks:
-        logger.error("未找到有效的用户配置")
+        log.error("未找到有效的用户配置")
         return
 
     await asyncio.gather(*tasks)
