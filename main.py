@@ -186,6 +186,7 @@ if __name__ == "__main__":
             try:
                 schedulers.add_job(run, CronTrigger.from_crontab(cron_expr),
                                    misfire_grace_time=3600,
+                                   max_instances=2,
                                    kwargs={'cron_index': index + 1, 'total_count': len(cron_list)})
                 log.info(f"已添加定时任务: [{cron_expr}] (第 {index + 1}/{len(cron_list)} 个)")
                 job_count += 1
@@ -210,6 +211,7 @@ if __name__ == "__main__":
             IntervalTrigger(hours=24),
             next_run_time=datetime.datetime.now(),
             misfire_grace_time=3600,
+            max_instances=2,
         )
         scheduler.start()
     else:
