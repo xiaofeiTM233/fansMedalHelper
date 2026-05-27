@@ -53,22 +53,11 @@ try:
         "WEARMEDAL": users["WEARMEDAL"],
         "DANMAKU_ROUND_ROBIN": users["DANMAKU_ROUND_ROBIN"],
         "PROXY": users.get("PROXY"),
-        "STOPWATCHINGTIME": None,
         "CRON_INDEX": cron_index,
         "TOTAL_CRON_COUNT": 0,
         "CURRENT_CRON_INDEX": 0,
+        "STOPWATCHINGTIME": None,
     }
-    stoptime = users.get("STOPWATCHINGTIME")
-    if stoptime:
-        import time
-        now = int(time.time())
-        if isinstance(stoptime, int):
-            delay = now + int(stoptime)
-        else:
-            delay = int(time.mktime(time.strptime(f'{time.strftime("%Y-%m-%d", time.localtime(now))} {stoptime}', "%Y-%m-%d %H:%M:%S")))
-            delay = delay if delay > now else delay + 86400
-        config["STOPWATCHINGTIME"] = delay
-        log.info(f"本轮任务将在 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(config['STOPWATCHINGTIME']))} 结束")
 except Exception as e:
     log.error(f"读取配置文件失败,请检查配置文件格式是否正确: {e}")
     exit(1)
@@ -147,6 +136,21 @@ def run(*args, **kwargs):
     total_count = kwargs.get('total_count', 0)
     config["CURRENT_CRON_INDEX"] = cron_index
     config["TOTAL_CRON_COUNT"] = total_count
+
+    stoptime = users.get("STOPWATCHINGTIME")
+    if stoptime:
+        import time
+        now = int(time.time())
+        if isinstance(stoptime, int):
+            delay = now + int(stoptime)
+        else:
+            delay = int(time.mktime(time.strptime(f'{time.strftime("%Y-%m-%d", time.localtime(now))} {stoptime}', "%Y-%m-%d %H:%M:%S")))
+            delay = delay if delay > now else delay + 86400
+        config["STOPWATCHINGTIME"] = delay
+        log.info(f"本轮任务将在 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(delay))} 结束")
+    else:
+        config["STOPWATCHINGTIME"] = None
+
     loop.run_until_complete(main())
     log.info("任务结束，等待下一次执行。")
 
