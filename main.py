@@ -9,7 +9,7 @@ import itertools
 from src import BiliUser
 
 log = logger.bind(user="B站粉丝牌助手")
-__VERSION__ = "0.4.3"
+__VERSION__ = "0.4.4"
 
 warnings.filterwarnings(
     "ignore",
