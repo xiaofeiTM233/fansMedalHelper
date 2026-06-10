@@ -25,6 +25,7 @@ class BiliUser:
 
         self.mid, self.name = 0, ""
         self.access_key = access_token  # 登录凭证
+        self.buvid3 = ""  # 指纹标识
         try:
             self.whiteList = list(map(lambda x: int(x if x else 0), str(whiteUIDs).split(',')))  # 白名单UID
             self.bannedList = list(map(lambda x: int(x if x else 0), str(bannedUIDs).split(',')))  # 黑名单
@@ -93,6 +94,12 @@ class BiliUser:
                 self.initialMedal = medalInfo['my_fans_medal']
         self.log.log("SUCCESS", str(loginInfo['mid']) + " 登录成功")
         self.isLogin = True
+        # 登录成功后获取 buvid3
+        self.buvid3 = await self.api.getBuvid3()
+        if self.buvid3:
+            self.log.log("INFO", "获取 buvid3 成功")
+        else:
+            self.log.log("WARNING", "未获取到 buvid3，点赞可能失败")
         return True
 
     async def doSign(self):

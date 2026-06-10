@@ -116,6 +116,17 @@ async def get_medals(session, access_key):
             page += 1
     return medal_map
 
+async def get_buvid3(session):
+    """通过B站指纹接口获取 buvid3"""
+    url = "https://api.bilibili.com/x/frontend/finger/spi"
+    try:
+        async with session.get(url, headers=WEB_HEADERS) as resp:
+            data = await resp.json()
+            if data.get("code") == 0:
+                return data["data"].get("b_3", "")
+    except Exception as e:
+        log.warning(f"获取 buvid3 失败: {e}")
+    return ""
 
 async def get_live_users(session, access_key):
     """从动态页获取正在直播的主播列表"""
@@ -132,7 +143,7 @@ async def get_live_users(session, access_key):
         return []
 
 
-async def like(session, access_key, room_id, up_id, self_uid):
+async def like(session, access_key, room_id, up_id, self_uid, buvid3=None):
     """执行一次点赞"""
     url = "https://api.live.bilibili.com/xlive/app-ucenter/v1/like_info_v3/like/likeReportV3"
     data = sign_params({
@@ -144,7 +155,10 @@ async def like(session, access_key, room_id, up_id, self_uid):
         "anchor_id": up_id,
         "uid": self_uid,
     })
-    async with session.post(url, data=data, headers=APP_HEADERS) as resp:
+    headers = dict(APP_HEADERS)
+    if buvid3:
+        headers["Cookie"] = f"buvid3={buvid3}"
+    async with session.post(url, data=data, headers=headers) as resp:
         result = await resp.json()
         if result.get("code") != 0:
             raise Exception(f"点赞失败: {result.get('message', '未知错误')}")
@@ -156,6 +170,12 @@ async def process_user(access_key, like_count, like_cd):
     try:
         mid, name = await login(session, access_key)
         log.info(f"[{name}] {mid} 登录成功")
+
+        buvid3 = await get_buvid3(session)
+        if buvid3:
+            log.info(f"[{name}] 获取 buvid3 成功")
+        else:
+            log.warning(f"[{name}] 未获取到 buvid3，点赞可能失败")
 
         medal_map = await get_medals(session, access_key)
         log.info(f"[{name}] 共有 {len(medal_map)} 个粉丝牌子")
@@ -176,8 +196,8 @@ async def process_user(access_key, like_count, like_cd):
 
             liked_count = 0
             for live_user in live_users:
-                uid = live_user["mid"]
-                room_id = live_user["room_id"]
+                uid = int(live_user["mid"])
+                room_id = int(live_user["room_id"])
                 uname = live_user["uname"]
 
                 if uid in cache["liked_uids"]:
@@ -188,7 +208,7 @@ async def process_user(access_key, like_count, like_cd):
                 log.info(f"[{name}] 检测到 {uname} 正在直播，有粉丝牌子，开始点赞 ({like_count}次)...")
                 try:
                     for i in range(like_count):
-                        await like(session, access_key, room_id, uid, mid)
+                        await like(session, access_key, room_id, uid, mid, buvid3)
                         if like_cd > 0:
                             await asyncio.sleep(like_cd)
                     log.info(f"[{name}] {uname} 点赞完成")

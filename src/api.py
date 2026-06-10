@@ -162,6 +162,22 @@ class BiliApi:
                 break
             params["page"] += 1
 
+    async def getBuvid3(self) -> str:
+        """通过B站指纹接口获取 buvid3"""
+        url = "https://api.bilibili.com/x/frontend/finger/spi"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://www.bilibili.com/",
+        }
+        try:
+            async with self.session.get(url, headers=headers) as resp:
+                data = await resp.json()
+                if data.get("code") == 0:
+                    return data["data"].get("b_3", "")
+        except Exception:
+            pass
+        return ""
+
     async def likeInteract(self, room_id: int):
         """
         点赞直播间
@@ -174,13 +190,12 @@ class BiliApi:
             "click_time": 1,
             "roomid": room_id,
         }
-        self.headers.update(
-            {
-                "Content-Type": "application/x-www-form-urlencoded",
-            }
-        ),
+        headers = dict(self.headers)
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        if getattr(self.u, "buvid3", None):
+            headers["Cookie"] = f"buvid3={self.u.buvid3}"
         # for _ in range(3):
-        await self.__post(url, data=SingableDict(data).signed, headers=self.headers)
+        await self.__post(url, data=SingableDict(data).signed, headers=headers)
         # await asyncio.sleep(self.u.config['LIKE_CD'] if not self.u.config['ASYNC'] else 2)
 
     async def likeInteractV3(self, room_id: int, up_id: int, self_uid: int):
@@ -197,13 +212,12 @@ class BiliApi:
             "anchor_id": up_id,
             "uid": self_uid,
         }
-        self.headers.update(
-            {
-                "Content-Type": "application/x-www-form-urlencoded",
-            }
-        ),
+        headers = dict(self.headers)
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        if getattr(self.u, "buvid3", None):
+            headers["Cookie"] = f"buvid3={self.u.buvid3}"
         # for _ in range(3):
-        await self.__post(url, data=SingableDict(data).signed, headers=self.headers)
+        await self.__post(url, data=SingableDict(data).signed, headers=headers)
 
     async def shareRoom(self, room_id: int):
         """
