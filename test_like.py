@@ -146,10 +146,10 @@ async def like(session, access_key, room_id, up_id, self_uid):
         "access_key": access_key,
         "actionKey": "appkey",
         "appkey": APPKEY,
-        "click_time": 1,
+        "click_time": 5,
         "room_id": room_id,
         "anchor_id": up_id,
-        "uid": up_id,
+        "uid": self_uid,
     })
     async with session.post(url, data=data, headers=APP_HEADERS) as resp:
         result = await resp.json()
