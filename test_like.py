@@ -1,6 +1,6 @@
 """
 动态页开播检测点赞脚本
-独立运行，每60秒轮询一次动态页API，检测正在直播的主播
+独立运行，每120秒轮询一次动态页API，检测正在直播的主播
 如果用户有对应粉丝牌子，则执行点赞任务，每天每个主播只执行一次
 共用 users.yaml 中的 LIKE_CD 和 LIKE_COUNT 配置
 """
@@ -17,7 +17,7 @@ from hashlib import md5
 
 POLL_INTERVAL = 120
 LIKE_CD = 15
-LIKE_COUNT = 100
+LIKE_COUNT = 1
 
 logging.basicConfig(
     level=logging.INFO,
@@ -150,7 +150,7 @@ async def like(session, access_key, room_id, up_id, self_uid, buvid3=None):
         "access_key": access_key,
         "actionKey": "appkey",
         "appkey": APPKEY,
-        "click_time": 10,
+        "click_time": 300,
         "room_id": room_id,
         "anchor_id": up_id,
         "uid": self_uid,
