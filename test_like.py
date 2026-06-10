@@ -15,6 +15,10 @@ from aiohttp import ClientSession, ClientTimeout
 from urllib.parse import urlencode
 from hashlib import md5
 
+POLL_INTERVAL = 120
+LIKE_CD = 15
+LIKE_COUNT = 100
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -41,9 +45,6 @@ WEB_HEADERS = {
     "Referer": "https://www.bilibili.com/",
 }
 
-POLL_INTERVAL = 60
-
-
 def sign_params(data: dict) -> dict:
     """对参数进行签名"""
     sorted_params = dict(sorted(data.items()))
@@ -61,22 +62,14 @@ def load_config():
         return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def load_cache(mid):
-    path = f"live_detect_cache_{mid}.json"
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"date": "", "liked_uids": []}
+# 内存缓存: mid -> {"date": str, "liked_uids": list}
+_cache = {}
 
+def get_cache(mid):
+    return _cache.setdefault(mid, {"date": "", "liked_uids": []})
 
-def save_cache(mid, cache):
-    path = f"live_detect_cache_{mid}.json"
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(cache, f)
-    except Exception as e:
-        log.warning(f"保存缓存失败: {e}")
+def update_cache(mid, cache):
+    _cache[mid] = cache
 
 
 async def login(session, access_key):
@@ -146,7 +139,7 @@ async def like(session, access_key, room_id, up_id, self_uid):
         "access_key": access_key,
         "actionKey": "appkey",
         "appkey": APPKEY,
-        "click_time": 5,
+        "click_time": 10,
         "room_id": room_id,
         "anchor_id": up_id,
         "uid": self_uid,
@@ -167,11 +160,11 @@ async def process_user(access_key, like_count, like_cd):
         medal_map = await get_medals(session, access_key)
         log.info(f"[{name}] 共有 {len(medal_map)} 个粉丝牌子")
 
-        cache = load_cache(mid)
+        cache = get_cache(mid)
         today = time.strftime("%Y-%m-%d", time.localtime())
         if cache.get("date") != today:
             cache = {"date": today, "liked_uids": []}
-            save_cache(mid, cache)
+            update_cache(mid, cache)
 
         while True:
             live_users = await get_live_users(session, access_key)
@@ -206,7 +199,7 @@ async def process_user(access_key, like_count, like_cd):
                     log.error(f"[{name}] {uname} 点赞失败: {e}")
 
             if liked_count > 0:
-                save_cache(mid, cache)
+                update_cache(mid, cache)
                 log.info(f"[{name}] 本轮检测完成，为 {liked_count} 个主播点赞")
 
             await asyncio.sleep(POLL_INTERVAL)
@@ -219,20 +212,17 @@ async def process_user(access_key, like_count, like_cd):
 async def main():
     config = load_config()
 
-    like_cd = 15 #config.get("LIKE_CD", 3)
-    like_count = 500 #config.get("LIKE_COUNT", 500)
-
-    if like_count == 0 or like_cd == -1:
+    if LIKE_COUNT == 0 or LIKE_CD == -1:
         log.warning("LIKE_COUNT=0 或 LIKE_CD=-1，点赞功能未开启，请先配置")
         return
 
-    log.info(f"动态开播检测点赞启动，轮询间隔 {POLL_INTERVAL} 秒，每次点赞 {like_count} 次，间隔 {like_cd} 秒")
+    log.info(f"动态开播检测点赞启动，轮询间隔 {POLL_INTERVAL} 秒，每次点赞 {LIKE_COUNT} 次，间隔 {LIKE_CD} 秒")
 
     tasks = []
     for user in config.get("USERS", []):
         access_key = user.get("access_key", "")
         if access_key:
-            tasks.append(process_user(access_key, like_count, like_cd))
+            tasks.append(process_user(access_key, LIKE_COUNT, LIKE_CD))
 
     if not tasks:
         log.error("未找到有效的用户配置")
