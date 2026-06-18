@@ -156,6 +156,7 @@ async def like(session, access_key, room_id, up_id, self_uid, buvid3=None):
         "uid": self_uid,
     })
     headers = dict(APP_HEADERS)
+    headers["x-bili-mid"] = "{self_uid}"
     if buvid3:
         headers["Cookie"] = f"buvid3={buvid3}"
     async with session.post(url, data=data, headers=headers) as resp:
