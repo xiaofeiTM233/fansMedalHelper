@@ -11,6 +11,7 @@ import time
 import asyncio
 import logging
 import warnings
+from logging.handlers import TimedRotatingFileHandler
 from aiohttp import ClientSession, ClientTimeout
 from urllib.parse import urlencode
 from hashlib import md5
@@ -19,12 +20,35 @@ POLL_INTERVAL = 120
 LIKE_CD = 15
 LIKE_COUNT = 1
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+log = logging.getLogger("live_detect")
+log.setLevel(logging.INFO)
+
+log_format = logging.Formatter(
+    "%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-log = logging.getLogger("live_detect")
+
+# 控制台输出
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(log_format)
+log.addHandler(console_handler)
+
+# 文件输出（按天轮转，保留30天）
+file_handler = TimedRotatingFileHandler(
+    filename=os.path.join(LOG_DIR, "test_like.log"),
+    when="midnight",
+    interval=1,
+    backupCount=30,
+    encoding="utf-8",
+)
+file_handler.suffix = "%Y-%m-%d"
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(log_format)
+log.addHandler(file_handler)
 
 warnings.filterwarnings(
     "ignore",
