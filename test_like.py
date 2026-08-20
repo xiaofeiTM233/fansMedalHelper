@@ -191,67 +191,70 @@ async def like(session, access_key, room_id, up_id, self_uid, buvid3=None):
 
 async def process_user(access_key, like_count, like_cd):
     """处理单个用户的动态检测点赞"""
-    session = ClientSession(timeout=ClientTimeout(total=10), trust_env=True)
-    try:
-        mid, name = await login(session, access_key)
-        log.info(f"[{name}] {mid} 登录成功")
+    retry_interval = POLL_INTERVAL  # 异常重试等待时间
+    while True:
+        session = ClientSession(timeout=ClientTimeout(total=10), trust_env=True)
+        try:
+            mid, name = await login(session, access_key)
+            log.info(f"[{name}] {mid} 登录成功")
 
-        buvid3 = await get_buvid3(session)
-        if buvid3:
-            log.info(f"[{name}] 获取 buvid3 成功")
-        else:
-            log.warning(f"[{name}] 未获取到 buvid3，点赞可能失败")
+            buvid3 = await get_buvid3(session)
+            if buvid3:
+                log.info(f"[{name}] 获取 buvid3 成功")
+            else:
+                log.warning(f"[{name}] 未获取到 buvid3，点赞可能失败")
 
-        medal_map = await get_medals(session, access_key)
-        log.info(f"[{name}] 共有 {len(medal_map)} 个粉丝牌子")
+            medal_map = await get_medals(session, access_key)
+            log.info(f"[{name}] 共有 {len(medal_map)} 个粉丝牌子")
 
-        cache = get_cache(mid)
-        today = time.strftime("%Y-%m-%d", time.localtime())
-        if cache.get("date") != today:
-            cache = {"date": today, "liked_uids": []}
-            update_cache(mid, cache)
-
-        while True:
-            live_users = await get_live_users(session, access_key)
-
-            if not live_users:
-                log.debug(f"[{name}] 动态页没有检测到正在直播的主播，等待下次轮询")
-                await asyncio.sleep(POLL_INTERVAL)
-                continue
-
-            liked_count = 0
-            for live_user in live_users:
-                uid = int(live_user["mid"])
-                room_id = int(live_user["room_id"])
-                uname = live_user["uname"]
-
-                if uid in cache["liked_uids"]:
-                    continue
-                if uid not in medal_map:
-                    continue
-
-                log.info(f"[{name}] 检测到 {uname} 正在直播，有粉丝牌子，开始点赞 ({like_count}次)...")
-                try:
-                    for i in range(like_count):
-                        await like(session, access_key, room_id, uid, mid, buvid3)
-                        if like_cd > 0:
-                            await asyncio.sleep(like_cd)
-                    log.info(f"[{name}] {uname} 点赞完成")
-                    cache["liked_uids"].append(uid)
-                    liked_count += 1
-                    await asyncio.sleep(like_cd)
-                except Exception as e:
-                    log.error(f"[{name}] {uname} 点赞失败: {e}")
-
-            if liked_count > 0:
+            cache = get_cache(mid)
+            today = time.strftime("%Y-%m-%d", time.localtime())
+            if cache.get("date") != today:
+                cache = {"date": today, "liked_uids": []}
                 update_cache(mid, cache)
-                log.info(f"[{name}] 本轮检测完成，为 {liked_count} 个主播点赞")
 
-            await asyncio.sleep(POLL_INTERVAL)
-    except Exception as e:
-        log.error(f"用户处理异常退出: {e}")
-    finally:
-        await session.close()
+            while True:
+                live_users = await get_live_users(session, access_key)
+
+                if not live_users:
+                    log.debug(f"[{name}] 动态页没有检测到正在直播的主播，等待下次轮询")
+                    await asyncio.sleep(POLL_INTERVAL)
+                    continue
+
+                liked_count = 0
+                for live_user in live_users:
+                    uid = int(live_user["mid"])
+                    room_id = int(live_user["room_id"])
+                    uname = live_user["uname"]
+
+                    if uid in cache["liked_uids"]:
+                        continue
+                    if uid not in medal_map:
+                        continue
+
+                    log.info(f"[{name}] 检测到 {uname} 正在直播，有粉丝牌子，开始点赞 ({like_count}次)...")
+                    try:
+                        for i in range(like_count):
+                            await like(session, access_key, room_id, uid, mid, buvid3)
+                            if like_cd > 0:
+                                await asyncio.sleep(like_cd)
+                        log.info(f"[{name}] {uname} 点赞完成")
+                        cache["liked_uids"].append(uid)
+                        liked_count += 1
+                        await asyncio.sleep(like_cd)
+                    except Exception as e:
+                        log.error(f"[{name}] {uname} 点赞失败: {e}")
+
+                if liked_count > 0:
+                    update_cache(mid, cache)
+                    log.info(f"[{name}] 本轮检测完成，为 {liked_count} 个主播点赞")
+
+                await asyncio.sleep(POLL_INTERVAL)
+        except Exception as e:
+            log.error(f"用户处理异常退出: {e}，将在 {retry_interval} 秒后自动重试")
+            await asyncio.sleep(retry_interval)
+        finally:
+            await session.close()
 
 
 async def main():
