@@ -165,6 +165,11 @@ async def get_medals(session, access_key):
             data = await resp.json()
             if data.get("code") != 0:
                 raise Exception(f"获取勋章失败: {data.get('message', '未知错误')}")
+            # 第一页合并 special_list（当前佩戴的粉丝牌）
+            if page == 1:
+                for item in data["data"].get("special_list", []):
+                    if item.get("room_info", {}).get("room_id", 0) != 0:
+                        medal_map[item["medal"]["target_id"]] = item
             items = data["data"].get("list", [])
             for item in items:
                 if item.get("room_info", {}).get("room_id", 0) != 0:
